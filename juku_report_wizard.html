@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>塾授業報告書ウィザード</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #ffffff;
+  --bg-secondary: #f5f5f4;
+  --bg-info: #e6f1fb;
+  --text-primary: #1a1a18;
+  --text-secondary: #6b6b67;
+  --text-info: #185fa5;
+  --text-success: #3b6d11;
+  --border: rgba(0,0,0,0.15);
+  --border-secondary: rgba(0,0,0,0.25);
+  --border-success: rgba(59,109,17,0.4);
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --font: system-ui, -apple-system, sans-serif;
+  --font-mono: ui-monospace, 'Cascadia Code', monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #1e1e1c;
+    --bg-secondary: #2a2a28;
+    --bg-info: #0c3355;
+    --text-primary: #f0ede6;
+    --text-secondary: #9a9a96;
+    --text-info: #85b7eb;
+    --text-success: #97c459;
+    --border: rgba(255,255,255,0.15);
+    --border-secondary: rgba(255,255,255,0.25);
+    --border-success: rgba(151,196,89,0.4);
+  }
+}
+body {
+  font-family: var(--font);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  min-height: 100vh;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 2rem 1rem;
+}
+.wizard { width: 100%; max-width: 680px; }
+h1 { font-size: 20px; font-weight: 500; margin-bottom: 1.5rem; color: var(--text-primary); }
+.progress-bar { height: 4px; background: var(--border); border-radius: 2px; margin-bottom: 1rem; }
+.progress-fill { height: 100%; background: var(--text-info); border-radius: 2px; transition: width 0.3s ease; }
+.step-label { font-size: 12px; color: var(--text-secondary); margin-bottom: 1.25rem; }
+.section-badge {
+  display: inline-block; font-size: 11px; font-weight: 500; padding: 3px 10px;
+  border-radius: 99px; background: var(--bg-info); color: var(--text-info); margin-bottom: 0.75rem;
+}
+.question-card {
+  background: var(--bg); border: 0.5px solid var(--border);
+  border-radius: var(--radius-lg); padding: 1.25rem 1.5rem; margin-bottom: 1rem;
+}
+.question-title { font-size: 15px; font-weight: 500; color: var(--text-primary); margin-bottom: 0.5rem; }
+.question-hint { font-size: 12px; color: var(--text-secondary); margin-bottom: 0.75rem; }
+input[type=text], textarea {
+  width: 100%; padding: 8px 12px; font-size: 14px;
+  background: var(--bg-secondary); border: 0.5px solid var(--border-secondary);
+  border-radius: var(--radius-md); color: var(--text-primary);
+  font-family: var(--font); outline: none; transition: border-color 0.15s;
+}
+input[type=text]:focus, textarea:focus {
+  border-color: var(--text-info);
+  box-shadow: 0 0 0 3px rgba(24,95,165,0.12);
+}
+textarea { resize: vertical; min-height: 72px; }
+.type-select-area { display: flex; gap: 12px; margin-bottom: 1rem; }
+.type-btn {
+  flex: 1; padding: 1rem; font-size: 15px; font-weight: 500;
+  border-radius: var(--radius-lg); border: 0.5px solid var(--border-secondary);
+  background: var(--bg); color: var(--text-primary); cursor: pointer;
+  font-family: var(--font); transition: all 0.15s; text-align: center; line-height: 1.5;
+}
+.type-btn:hover { background: var(--bg-secondary); }
+.type-btn.selected { background: var(--text-primary); color: var(--bg); border-color: var(--text-primary); }
+.type-sublabel { font-size: 12px; margin-top: 4px; font-weight: 400; opacity: 0.7; }
+.btn-row { display: flex; gap: 10px; margin-top: 1rem; }
+button {
+  padding: 9px 20px; font-size: 14px; border-radius: var(--radius-md);
+  border: 0.5px solid var(--border-secondary); background: var(--bg);
+  color: var(--text-primary); cursor: pointer; font-family: var(--font); transition: background 0.15s;
+}
+button.primary { background: var(--text-primary); color: var(--bg); border-color: var(--text-primary); }
+button:hover { background: var(--bg-secondary); }
+button.primary:hover { opacity: 0.85; background: var(--text-primary); }
+.output-area { display: none; }
+.done-title { font-size: 18px; font-weight: 500; margin-bottom: 0.25rem; }
+.done-sub { font-size: 13px; color: var(--text-secondary); margin-bottom: 1.5rem; }
+.doc-block {
+  background: var(--bg); border: 0.5px solid var(--border);
+  border-radius: var(--radius-lg); padding: 1.25rem 1.5rem; margin-bottom: 1rem;
+}
+.doc-label { font-size: 11px; font-weight: 500; color: var(--text-secondary); margin-bottom: 0.5rem; letter-spacing: 0.05em; text-transform: uppercase; }
+.doc-content { font-size: 13px; white-space: pre-wrap; color: var(--text-primary); font-family: var(--font-mono); line-height: 1.7; }
+.copy-btn { font-size: 12px; padding: 5px 14px; margin-top: 0.75rem; }
+.copy-btn.copied { color: var(--text-success); border-color: var(--border-success); }
+.restart-btn { margin-top: 0.5rem; }
+</style>
+</head>
+<body>
+<div class="wizard">
+  <h1>授業報告書ウィザード</h1>
+
+  <!-- 授業種別選択画面 -->
+  <div id="type-screen">
+    <div class="question-card">
+      <div class="question-title">授業の種類を選択してください</div>
+      <div class="question-hint" style="margin-bottom:1rem;">今回入力する授業の種別を選んでください</div>
+      <div class="type-select-area">
+        <div class="type-btn" id="btn-regular" onclick="selectType('regular')">
+          通常授業
+          <div class="type-sublabel">定期的な週次授業</div>
+        </div>
+        <div class="type-btn" id="btn-special" onclick="selectType('special')">
+          講習会授業
+          <div class="type-sublabel">夏期・冬期・春期など</div>
+        </div>
+      </div>
+    </div>
+    <!-- 講習会の季節選択（講習会選択時のみ表示） -->
+    <div id="season-card" class="question-card" style="display:none;">
+      <div class="question-title">講習会の種類を選択してください</div>
+      <div class="type-select-area">
+        <div class="type-btn" id="btn-summer" onclick="selectSeason('夏期')">夏期</div>
+        <div class="type-btn" id="btn-winter" onclick="selectSeason('冬期')">冬期</div>
+        <div class="type-btn" id="btn-spring" onclick="selectSeason('春期')">春期</div>
+      </div>
+    </div>
+    <div class="btn-row">
+      <button class="primary" id="btn-start" onclick="startWizard()" style="opacity:0.4;pointer-events:none;">次へ →</button>
+    </div>
+  </div>
+
+  <!-- 質問フォーム -->
+  <div id="form-area" style="display:none;">
+    <div class="progress-bar"><div class="progress-fill" id="prog"></div></div>
+    <div class="step-label" id="step-lbl"></div>
+    <div id="qcard" class="question-card"></div>
+    <div class="btn-row">
+      <button id="btn-back">← 戻る</button>
+      <button id="btn-next" class="primary">次へ →</button>
+    </div>
+  </div>
+
+  <!-- 出力 -->
+  <div class="output-area" id="output-area">
+    <div class="done-title">文書が完成しました</div>
+    <div class="done-sub">各ブロックの「コピー」ボタンでそれぞれコピーできます</div>
+    <div class="doc-block">
+      <div class="doc-label">授業内容</div>
+      <div class="doc-content" id="out1"></div>
+      <button class="copy-btn" onclick="copyDoc('out1',this)">コピー</button>
+    </div>
+    <div class="doc-block">
+      <div class="doc-label">宿題</div>
+      <div class="doc-content" id="out2"></div>
+      <button class="copy-btn" onclick="copyDoc('out2',this)">コピー</button>
+    </div>
+    <div class="doc-block">
+      <div class="doc-label">注記</div>
+      <div class="doc-content" id="out3"></div>
+      <button class="copy-btn" onclick="copyDoc('out3',this)">コピー</button>
+    </div>
+    <button class="copy-btn restart-btn" onclick="restart()">最初からやり直す</button>
+  </div>
+</div>
+
+<script>
+// ===== 日付ユーティリティ =====
+const today = new Date();
+
+function getMonth() { return today.getMonth() + 1; }
+
+// 日本の祝日（2024〜2026）
+const HOLIDAYS = new Set([
+  '2024-01-01','2024-01-08','2024-02-11','2024-02-12','2024-02-23',
+  '2024-03-20','2024-04-29','2024-05-03','2024-05-04','2024-05-05','2024-05-06',
+  '2024-07-15','2024-08-11','2024-08-12','2024-09-16','2024-09-22','2024-09-23',
+  '2024-10-14','2024-11-03','2024-11-04','2024-11-23','2024-12-23',
+  '2025-01-01','2025-01-13','2025-02-11','2025-02-23','2025-02-24',
+  '2025-03-20','2025-04-29','2025-05-03','2025-05-04','2025-05-05','2025-05-06',
+  '2025-07-21','2025-08-11','2025-09-15','2025-09-23','2025-10-13',
+  '2025-11-03','2025-11-23','2025-11-24',
+  '2026-01-01','2026-01-12','2026-02-11','2026-02-23',
+  '2026-03-20','2026-04-29','2026-05-03','2026-05-04','2026-05-05','2026-05-06',
+  '2026-07-20','2026-08-11','2026-09-21','2026-09-22','2026-09-23',
+  '2026-10-12','2026-11-03','2026-11-23',
+]);
+
+function pad(n) { return String(n).padStart(2,'0'); }
+function isHoliday(y, m, d) { return HOLIDAYS.has(`${y}-${pad(m)}-${pad(d)}`); }
+
+// 今日と同じ曜日で今月内・今日以前・祝日でない日の数
+function calcClassDone() {
+  const y = today.getFullYear();
+  const m = today.getMonth() + 1;
+  const dow = today.getDay();
+  const todayD = today.getDate();
+  let count = 0;
+  for (let d = 1; d <= todayD; d++) {
+    const dt = new Date(y, m - 1, d);
+    if (dt.getDay() === dow && !isHoliday(y, m, d)) count++;
+  }
+  return count;
+}
+
+// ===== 授業種別・季節 =====
+let classType = null;
+let classSeason = null;
+
+function selectType(type) {
+  classType = type;
+  document.getElementById('btn-regular').classList.toggle('selected', type === 'regular');
+  document.getElementById('btn-special').classList.toggle('selected', type === 'special');
+  if (type === 'special') {
+    document.getElementById('season-card').style.display = 'block';
+    // 季節未選択なら次へボタンはまだ無効
+    updateStartBtn();
+  } else {
+    document.getElementById('season-card').style.display = 'none';
+    classSeason = null;
+    updateStartBtn();
+  }
+}
+
+function selectSeason(season) {
+  classSeason = season;
+  ['btn-summer','btn-winter','btn-spring'].forEach(id => {
+    document.getElementById(id).classList.remove('selected');
+  });
+  const map = { '夏期':'btn-summer', '冬期':'btn-winter', '春期':'btn-spring' };
+  document.getElementById(map[season]).classList.add('selected');
+  updateStartBtn();
+}
+
+function updateStartBtn() {
+  const ready = classType === 'regular' || (classType === 'special' && classSeason);
+  const btn = document.getElementById('btn-start');
+  btn.style.opacity = ready ? '1' : '0.4';
+  btn.style.pointerEvents = ready ? 'auto' : 'none';
+}
+
+function startWizard() {
+  if (!classType) return;
+  if (classType === 'special' && !classSeason) return;
+  document.getElementById('type-screen').style.display = 'none';
+  document.getElementById('form-area').style.display = 'block';
+  render();
+}
+
+// ===== 質問定義 =====
+const questions = [
+  {
+    sec: "1. 授業内容", key: "class_total",
+    label: "授業回数（分母）",
+    hint: "今期の講習会授業の合計回数を入力してください",
+    placeholder: "例：8",
+    onlyIf: () => classType === 'special'
+  },
+  {
+    sec: "1. 授業内容", key: "class_done",
+    label: "今回は何回目の授業？",
+    hint: "今月の同曜日（祝日除く）の回数を自動入力しています。必要に応じて修正してください。",
+    placeholder: "例：2",
+    defaultFn: () => classType === 'regular' ? String(calcClassDone()) : ''
+  },
+  { sec: "1. 授業内容", key: "check_content", label: "チェックテスト内容", hint: "テスト内容を入力してください", placeholder: "例：連立方程式", type: "textarea" },
+  { sec: "1. 授業内容", key: "check_score_got", label: "チェックテスト得点", hint: "例：8", placeholder: "例：8" },
+  { sec: "1. 授業内容", key: "check_score_max", label: "チェックテスト満点", hint: "例：10", placeholder: "例：10" },
+  { sec: "1. 授業内容", key: "textbook", label: "授業で使った教材名", hint: "", placeholder: "例：〇〇数学テキスト" },
+  { sec: "1. 授業内容", key: "page", label: "ページ", hint: "", placeholder: "例：P.32〜35" },
+  { sec: "1. 授業内容", key: "unit", label: "単元名", hint: "", placeholder: "例：一次方程式の応用" },
+  { sec: "1. 授業内容", key: "weakness", label: "授業での弱点内容", hint: "生徒がつまずいていた内容", placeholder: "例：文章題の立式ができない", type: "textarea" },
+  { sec: "1. 授業内容", key: "weakness_action", label: "弱点への対応・指示", hint: "→ の後に続く内容", placeholder: "例：次回冒頭で類題を確認する", type: "textarea" },
+  {
+    sec: "1. 授業内容", key: "comment_extra",
+    label: "コメント（補足文）",
+    hint: "「本日は〇〇の演習・解説を行いました。」の後に続く文を入力してください",
+    placeholder: "例：積極的に質問できており、理解度も高まっています。",
+    type: "textarea"
+  },
+  {
+    sec: "1. 授業内容", key: "handout",
+    label: "配布物",
+    hint: "デフォルトは「本日はございません」。配布物がある場合は上書きしてください。",
+    placeholder: "例：プリント1枚",
+    defaultFn: () => "本日はございません"
+  },
+  {
+    sec: "1. 授業内容", key: "school_note",
+    label: "校舎へのご連絡（任意）",
+    hint: "特になければ空欄のままでOKです",
+    placeholder: "例：次回テキスト忘れないよう声掛けをお願いします",
+    type: "textarea"
+  },
+  {
+    sec: "2. 宿題", key: "hw_textbook",
+    label: "宿題の教材名",
+    hint: "デフォルトは授業教材名と同じです。異なる場合は上書きしてください。",
+    placeholder: "例：〇〇数学テキスト",
+    defaultFn: () => ans['textbook'] || ''
+  },
+  { sec: "2. 宿題", key: "hw_page", label: "宿題のページ", hint: "", placeholder: "例：P.36〜38" },
+  {
+    sec: "3. 注記", key: "next_check_textbook",
+    label: "次回チェックテスト 教材名",
+    hint: "デフォルトは授業教材名と同じです。異なる場合は上書きしてください。",
+    placeholder: "例：〇〇数学テキスト",
+    defaultFn: () => ans['textbook'] || ''
+  },
+  { sec: "3. 注記", key: "next_check_range_p", label: "次回チェックテスト 単元範囲 ページ", hint: "", placeholder: "例：P.32〜38" },
+  { sec: "3. 注記", key: "next_check_range_title", label: "次回チェックテスト 単元タイトル", hint: "『　』の中に入るタイトル", placeholder: "例：一次方程式の応用" },
+  { sec: "3. 注記", key: "next_textbook", label: "次回授業 教材名", hint: "デフォルトは授業教材名と同じです。異なる場合は上書きしてください。", placeholder: "例：〇〇数学テキスト", defaultFn: () => ans['textbook'] || '' },
+  { sec: "3. 注記", key: "next_page", label: "次回授業 ページ", hint: "", placeholder: "例：P.39〜42" },
+  { sec: "3. 注記", key: "next_unit", label: "次回授業 単元名", hint: "", placeholder: "例：比例式" },
+  {
+    sec: "3. 注記", key: "caution",
+    label: "注意事項",
+    hint: "各行の先頭に「・」が自動でつきます。なければ空欄でOKです。",
+    placeholder: "例：保護者面談希望あり、要確認",
+    type: "textarea"
+  },
+];
+
+let cur = 0;
+const ans = {};
+
+function activeQuestions() {
+  return questions.filter(q => !q.onlyIf || q.onlyIf());
+}
+
+function esc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function render() {
+  const qs = activeQuestions();
+  const q = qs[cur];
+  const pct = Math.round((cur / qs.length) * 100);
+  document.getElementById('prog').style.width = pct + '%';
+  document.getElementById('step-lbl').textContent = `質問 ${cur + 1} / ${qs.length}　—　${q.sec}`;
+
+  let saved = '';
+  if (ans[q.key] !== undefined) {
+    saved = ans[q.key];
+  } else if (q.defaultFn) {
+    saved = q.defaultFn();
+  }
+
+  document.getElementById('qcard').innerHTML = `
+    <div class="section-badge">${q.sec}</div>
+    <div class="question-title">${q.label}</div>
+    ${q.hint ? `<div class="question-hint">${q.hint}</div>` : ''}
+    ${q.type === 'textarea'
+      ? `<textarea id="ans" placeholder="${esc(q.placeholder)}">${esc(saved)}</textarea>`
+      : `<input type="text" id="ans" placeholder="${esc(q.placeholder)}" value="${esc(saved)}">`
+    }
+  `;
+  document.getElementById('btn-back').style.visibility = cur === 0 ? 'hidden' : 'visible';
+  document.getElementById('btn-next').textContent = cur === qs.length - 1 ? '完成 ✓' : '次へ →';
+  setTimeout(() => { const el = document.getElementById('ans'); if (el) el.focus(); }, 50);
+}
+
+function getVal() {
+  const el = document.getElementById('ans');
+  return el ? el.value.trim() : '';
+}
+
+document.getElementById('btn-next').addEventListener('click', () => {
+  const qs = activeQuestions();
+  ans[qs[cur].key] = getVal();
+  if (cur < qs.length - 1) { cur++; render(); }
+  else { showOutput(); }
+});
+
+document.getElementById('btn-back').addEventListener('click', () => {
+  const qs = activeQuestions();
+  ans[qs[cur].key] = getVal();
+  if (cur > 0) { cur--; render(); }
+});
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey && document.getElementById('form-area').style.display !== 'none') {
+    e.preventDefault();
+    document.getElementById('btn-next').click();
+  }
+});
+
+function v(key) { return ans[key] || ''; }
+
+function formatCaution(raw) {
+  if (!raw.trim()) return '';
+  return raw.split('\n')
+    .map(line => line.trim())
+    .filter(line => line.length > 0)
+    .map(line => line.startsWith('・') ? line : '・' + line)
+    .join('\n');
+}
+
+function showOutput() {
+  document.getElementById('form-area').style.display = 'none';
+  document.getElementById('output-area').style.display = 'block';
+
+  const month = getMonth();
+  const unit = v('unit');
+  const commentExtra = v('comment_extra');
+  const commentFull = `本日は${unit}の演習・解説を行いました。${commentExtra}`;
+  const caution = formatCaution(v('caution'));
+
+  const isSpecial = classType === 'special';
+  const classDone = v('class_done');
+  const classTotal = isSpecial ? v('class_total') : '4';
+  const classLabel = isSpecial ? `${classSeason}講習会` : '通常授業';
+  const hwLabel = isSpecial ? '講習会授業宿題' : '通常授業宿題';
+  const noteLabel = isSpecial ? '講習会授業引継' : '通常授業引継';
+
+  const doc1 =
+`【授業回数】
+${month}月${classLabel}　${classDone}/${classTotal}
+
+【チェックテスト単元（内容）】
+・内容：${v('check_content')}
+・点数：${v('check_score_got')}/${v('check_score_max')}
+
+【授業内容】
+・教材名：${v('textbook')}
+・ページ：${v('page')}
+・単元名：${unit}
+
+【授業での弱点内容】
+・${v('weakness')}
+→${v('weakness_action')}
+
+【コメント】
+・${commentFull}
+
+【配布物】
+・${v('handout')}
+
+【校舎へのご連絡について】
+${v('school_note')}`;
+
+  const doc2 =
+`【${hwLabel}】
+・教材名：${v('hw_textbook') || v('textbook')}
+・ページ：${v('hw_page')}
+・単元名：${unit}
+・その他コメント：丸付け直しまで`;
+
+  const doc3 =
+`◎${noteLabel}
+【チェックテスト内容・範囲】
+・教材名：${v('next_check_textbook')}
+・単元範囲：${v('next_check_range_p')}　『${v('next_check_range_title')}』より出題
+
+【次回授業内容（必須）】
+・教材名：${v('next_textbook')}
+・ページ：${v('next_page')}
+・単元名：${v('next_unit')}
+
+【注意事項】
+${caution}`;
+
+  document.getElementById('out1').textContent = doc1;
+  document.getElementById('out2').textContent = doc2;
+  document.getElementById('out3').textContent = doc3;
+}
+
+function copyDoc(id, btn) {
+  navigator.clipboard.writeText(document.getElementById(id).textContent).then(() => {
+    btn.textContent = 'コピーしました ✓';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = 'コピー'; btn.classList.remove('copied'); }, 2000);
+  });
+}
+
+function restart() {
+  Object.keys(ans).forEach(k => delete ans[k]);
+  cur = 0;
+  classType = null;
+  classSeason = null;
+  document.getElementById('btn-regular').classList.remove('selected');
+  document.getElementById('btn-special').classList.remove('selected');
+  ['btn-summer','btn-winter','btn-spring'].forEach(id => document.getElementById(id).classList.remove('selected'));
+  document.getElementById('season-card').style.display = 'none';
+  const btn = document.getElementById('btn-start');
+  btn.style.opacity = '0.4';
+  btn.style.pointerEvents = 'none';
+  document.getElementById('output-area').style.display = 'none';
+  document.getElementById('form-area').style.display = 'none';
+  document.getElementById('type-screen').style.display = 'block';
+}
+</script>
+</body>
+</html>

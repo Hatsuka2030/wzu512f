@@ -252,6 +252,17 @@ function calcClassDone() {
   return count;
 }
 
+// その月にその曜日が来る全日数のうち祝日でない数（分母）
+function calcClassTotal() {
+  const y=today.getFullYear(), m=today.getMonth()+1, dow=today.getDay();
+  const lastDay=new Date(y,m,0).getDate();
+  let count=0;
+  for(let d=1;d<=lastDay;d++){
+    if(new Date(y,m-1,d).getDay()===dow && !isHoliday(y,m,d)) count++;
+  }
+  return count;
+}
+
 let classType=null, classSeason=null;
 
 function selectType(type) {

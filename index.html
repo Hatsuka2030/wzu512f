@@ -297,6 +297,10 @@ function updateStartBtn() {
   btn.style.opacity=ready?'1':'0.4';
   btn.style.pointerEvents=ready?'auto':'none';
 }
+// ===== コメント後半ローテーション =====
+const COMMENT_POOL = [ ... ];
+function getNextComment() { ... }
+
 function startWizard() {
   if(!classType) return;
   if(classType==='special' && !classSeason) return;
@@ -331,9 +335,16 @@ const questions = [
     hint:"生徒がつまずいていた内容", placeholder:"例：文章題の立式ができない", type:"textarea" },
   { sec:"1. 授業内容", group:"授業内容", key:"weakness_action", label:"弱点への対応",
     hint:"→ の後に続く内容", placeholder:"例：次回冒頭で類題を確認する", type:"textarea" },
-  { sec:"1. 授業内容", group:"コメント・連絡", key:"comment_extra", label:"コメント補足文",
-    hint:"「本日は〇〇の演習・解説を行いました。」の後に続く文を入力してください",
-    placeholder:"例：積極的に質問できており、理解度も高まっています。", type:"textarea" },
+  { sec:"1. 授業内容", group:"コメント・連絡", key:"comment_first", label:"コメント補足文",
+    hint:"前半・後半をそれぞれ確認・編集してください。",
+    type:"paired",
+    paired: {
+      key2:"comment_second",
+      label1:"前半", label2:"後半",
+      defaultFn1:()=>"集中して授業に取り組んでおりました。",
+      defaultFn2:()=>getNextComment(),
+    }
+  },
   { sec:"1. 授業内容", group:"コメント・連絡", key:"handout", label:"配布物",
     hint:"デフォルトは「本日はございません」。配布物がある場合は上書きしてください。",
     placeholder:"例：プリント1枚", defaultFn:()=>"本日はございません" },
@@ -444,23 +455,41 @@ function render() {
   document.getElementById('prog').style.width=pct+'%';
   document.getElementById('step-lbl').textContent=`質問 ${cur+1} / ${qs.length}　—　${q.sec}`;
 
-  let saved='';
-  if(ans[q.key]!==undefined){ saved=ans[q.key]; }
-  else if(q.defaultFn){ saved=q.defaultFn(); }
-
+  const isPaired = q.type === 'paired';
   const isIncomplete = status[q.key] === 'incomplete';
-  document.getElementById('qcard').innerHTML=`
-    <div class="section-badge">${q.sec}</div>
-    <div class="question-title">${q.label.includes('　') ? q.label.split('　')[1] : q.label}</div>
-    ${q.hint?`<div class="question-hint">${q.hint}</div>`:''}
-    ${q.type==='textarea'
-      ?`<textarea id="ans" placeholder="${esc(q.placeholder)}">${esc(saved)}</textarea>`
-      :`<input type="text" id="ans" placeholder="${esc(q.placeholder)}" value="${esc(saved)}">`
-    }
-    <button class="incomplete-btn${isIncomplete?' is-incomplete':''}" id="btn-incomplete" type="button">
-      ${isIncomplete ? '⚠ 未完了としてマーク中' : '⚠ 未完了としてマーク'}
-    </button>
-  `;
+
+  if(isPaired){
+    const p = q.paired;
+    let val1 = ans[q.key]    !== undefined ? ans[q.key]    : p.defaultFn1();
+    let val2 = ans[p.key2]   !== undefined ? ans[p.key2]   : p.defaultFn2();
+    document.getElementById('qcard').innerHTML=`
+      <div class="section-badge">${q.sec}</div>
+      <div class="question-title">${q.label}</div>
+      ${q.hint?`<div class="question-hint">${q.hint}</div>`:''}
+      <div style="font-size:12px;color:var(--text-secondary);margin-bottom:4px;">${p.label1}</div>
+      <textarea id="ans" style="margin-bottom:10px;" placeholder="">${esc(val1)}</textarea>
+      <div style="font-size:12px;color:var(--text-secondary);margin-bottom:4px;">${p.label2}</div>
+      <textarea id="ans2" placeholder="">${esc(val2)}</textarea>
+      <button class="incomplete-btn${isIncomplete?' is-incomplete':''}" id="btn-incomplete" type="button">
+        ${isIncomplete ? '⚠ 未完了としてマーク中' : '⚠ 未完了としてマーク'}
+      </button>
+    `;
+  } else {
+    let saved = ans[q.key] !== undefined ? ans[q.key] : (q.defaultFn ? q.defaultFn() : '');
+    document.getElementById('qcard').innerHTML=`
+      <div class="section-badge">${q.sec}</div>
+      <div class="question-title">${q.label.includes('　') ? q.label.split('　')[1] : q.label}</div>
+      ${q.hint?`<div class="question-hint">${q.hint}</div>`:''}
+      ${q.type==='textarea'
+        ?`<textarea id="ans" placeholder="${esc(q.placeholder)}">${esc(saved)}</textarea>`
+        :`<input type="text" id="ans" placeholder="${esc(q.placeholder)}" value="${esc(saved)}">`
+      }
+      <button class="incomplete-btn${isIncomplete?' is-incomplete':''}" id="btn-incomplete" type="button">
+        ${isIncomplete ? '⚠ 未完了としてマーク中' : '⚠ 未完了としてマーク'}
+      </button>
+    `;
+  }
+
   document.getElementById('btn-back').style.visibility=cur===0?'hidden':'visible';
   document.getElementById('btn-next').textContent=cur===qs.length-1?'完成 ✓':'次へ →';
   document.getElementById('btn-incomplete').addEventListener('click',()=>{
@@ -486,13 +515,20 @@ function getVal(){
 }
 
 function saveVal(key) {
+  const qs=activeQuestions();
+  const q=qs[cur];
   const val = getVal();
-  if (val === '') {
-    delete ans[key];
-    if(status[key] !== 'incomplete') status[key] = undefined;
+  // paired項目は2つまとめて保存
+  if(q.type==='paired'){
+    const el2=document.getElementById('ans2');
+    const val2=el2?el2.value.trim():'';
+    if(val===''){ delete ans[q.key]; } else { ans[q.key]=val; }
+    if(val2===''){ delete ans[q.paired.key2]; } else { ans[q.paired.key2]=val2; }
+    const filled = val!==''||val2!=='';
+    if(status[key]!=='incomplete') status[key]=filled?'done':undefined;
   } else {
-    ans[key] = val;
-    if(status[key] !== 'incomplete') status[key] = 'done';
+    if(val===''){ delete ans[key]; if(status[key]!=='incomplete') status[key]=undefined; }
+    else { ans[key]=val; if(status[key]!=='incomplete') status[key]='done'; }
   }
 }
 
@@ -527,7 +563,7 @@ function showOutput(){
   document.getElementById('output-area').style.display='block';
 
   const month=getMonth(), unit=v('unit');
-  const commentFull=`本日は${unit}の演習・解説を行いました。${v('comment_extra')}`;
+  const commentFull=`本日は${unit}の演習・解説を行いました。${v('comment_first')}${v('comment_second')}`;
   const caution=formatCaution(v('caution'));
   const isSpecial=classType==='special';
   const classTotal=isSpecial?v('class_total'):'4';

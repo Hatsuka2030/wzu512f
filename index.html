@@ -136,6 +136,17 @@ button.primary:hover { opacity: 0.85; background: var(--text-primary); }
 .nav-item.active .nav-dot { background: var(--text-info); }
 .nav-item.done .nav-dot { background: var(--text-success); }
 .nav-item.skipped { opacity: 0.35; cursor: default; pointer-events: none; }
+.nav-item.incomplete .nav-dot { background: #e8a000; }
+.nav-item.incomplete { color: var(--text-primary); }
+.incomplete-btn {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 12px; padding: 5px 12px; margin-top: 0.75rem;
+  border-radius: var(--radius-md); border: 0.5px solid #e8a000;
+  background: transparent; color: #e8a000; cursor: pointer;
+  font-family: var(--font); transition: background 0.15s;
+}
+.incomplete-btn:hover { background: rgba(232,160,0,0.08); }
+.incomplete-btn.is-incomplete { background: rgba(232,160,0,0.15); font-weight: 500; }
 
 .output-area { display: none; }
 .done-title { font-size: 18px; font-weight: 500; margin-bottom: 0.25rem; }
@@ -357,6 +368,7 @@ const questions = [
 
 let cur=0;
 const ans={};
+const status={}; // 'done' | 'incomplete' | undefined(未訪問)
 
 function activeQuestions() {
   return questions.filter(q=>!q.onlyIf||q.onlyIf());
@@ -389,16 +401,22 @@ function renderNav() {
         html+=`<span style="display:inline-block;width:10px;height:1px;background:var(--border-secondary);flex-shrink:0;"></span>${grp}</div>`;
         html+=`<div class="nav-items" style="padding-left:14px;">`;
         items.forEach(({q,i})=>{
-          const isDone = ans[q.key] !== undefined && ans[q.key] !== '';
-          const cls = i===cur ? 'nav-item active' : (isDone ? 'nav-item done' : 'nav-item');
+          const st = status[q.key];
+          const cls = i===cur ? 'nav-item active'
+                    : st==='done' ? 'nav-item done'
+                    : st==='incomplete' ? 'nav-item incomplete'
+                    : 'nav-item';
           html+=`<div class="${cls}" data-idx="${i}"><span class="nav-dot"></span>${q.label}</div>`;
         });
         html+=`</div></div>`;
       } else {
         // 1項目だけならグループ名を省略してフラットに
         const {q,i}=items[0];
-        const isDone = ans[q.key] !== undefined && ans[q.key] !== '';
-        const cls = i===cur ? 'nav-item active' : (isDone ? 'nav-item done' : 'nav-item');
+        const st = status[q.key];
+        const cls = i===cur ? 'nav-item active'
+                  : st==='done' ? 'nav-item done'
+                  : st==='incomplete' ? 'nav-item incomplete'
+                  : 'nav-item';
         html+=`<div class="nav-items">`;
         html+=`<div class="${cls}" data-idx="${i}"><span class="nav-dot"></span>${grp === q.label ? q.label : grp + '　' + q.label}</div>`;
         html+=`</div>`;
@@ -430,17 +448,34 @@ function render() {
   if(ans[q.key]!==undefined){ saved=ans[q.key]; }
   else if(q.defaultFn){ saved=q.defaultFn(); }
 
+  const isIncomplete = status[q.key] === 'incomplete';
   document.getElementById('qcard').innerHTML=`
     <div class="section-badge">${q.sec}</div>
     <div class="question-title">${q.label.includes('　') ? q.label.split('　')[1] : q.label}</div>
-    ${q.hint?`<div class="question-hint">${q.hint}`:''}${q.hint?'</div>':''}
+    ${q.hint?`<div class="question-hint">${q.hint}</div>`:''}
     ${q.type==='textarea'
       ?`<textarea id="ans" placeholder="${esc(q.placeholder)}">${esc(saved)}</textarea>`
       :`<input type="text" id="ans" placeholder="${esc(q.placeholder)}" value="${esc(saved)}">`
     }
+    <button class="incomplete-btn${isIncomplete?' is-incomplete':''}" id="btn-incomplete" type="button">
+      ${isIncomplete ? '⚠ 未完了としてマーク中' : '⚠ 未完了としてマーク'}
+    </button>
   `;
   document.getElementById('btn-back').style.visibility=cur===0?'hidden':'visible';
   document.getElementById('btn-next').textContent=cur===qs.length-1?'完成 ✓':'次へ →';
+  document.getElementById('btn-incomplete').addEventListener('click',()=>{
+    const key=activeQuestions()[cur].key;
+    if(status[key]==='incomplete'){
+      status[key] = ans[key] ? 'done' : undefined;
+    } else {
+      status[key]='incomplete';
+    }
+    renderNav();
+    const btn=document.getElementById('btn-incomplete');
+    const isInc=status[key]==='incomplete';
+    btn.className='incomplete-btn'+(isInc?' is-incomplete':'');
+    btn.textContent=isInc?'⚠ 未完了としてマーク中':'⚠ 未完了としてマーク';
+  });
   renderNav();
   setTimeout(()=>{ const el=document.getElementById('ans'); if(el) el.focus(); },50);
 }
@@ -452,8 +487,13 @@ function getVal(){
 
 function saveVal(key) {
   const val = getVal();
-  if (val === '') { delete ans[key]; }
-  else { ans[key] = val; }
+  if (val === '') {
+    delete ans[key];
+    if(status[key] !== 'incomplete') status[key] = undefined;
+  } else {
+    ans[key] = val;
+    if(status[key] !== 'incomplete') status[key] = 'done';
+  }
 }
 
 document.getElementById('btn-next').addEventListener('click',()=>{
@@ -552,6 +592,7 @@ function copyDoc(id,btn){
 
 function restart(){
   Object.keys(ans).forEach(k=>delete ans[k]);
+  Object.keys(status).forEach(k=>delete status[k]);
   cur=0; classType=null; classSeason=null;
   document.getElementById('btn-regular').classList.remove('selected');
   document.getElementById('btn-special').classList.remove('selected');

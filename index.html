@@ -298,8 +298,36 @@ function updateStartBtn() {
   btn.style.pointerEvents=ready?'auto':'none';
 }
 // ===== コメント後半ローテーション =====
-const COMMENT_POOL = [ ... ];
-function getNextComment() { ... }
+const COMMENT_POOL = [
+  '間違えた問題でも、解説を聞いたり見たりするとすぐに理解できておりました。',
+  'わからない問題でも、解説を聞いて自分のものにできておりました。',
+  '難しい問題も、解説を聞くとすぐに理解できておりました。',
+  '間違えた問題でも、解説を読んだり聞いたりするとすぐに理解できておりました。',
+  '難しい問題でも、解説を聞いて自分のものにできておりました。',
+  '難しい問題でも、よく理解できておりました。',
+  '難しい問題でも質問をし、すぐに解決できておりました。',
+  '図や途中式を書いて、丁寧に取り組んでおりました。',
+  '解説後に演習を行い、しっかりと理解できておりました。',
+  '正しい解法を意識し、演習できておりました。',
+];
+function getNextComment() {
+  const LS_KEY = 'comment_used';
+  let used = [];
+  try { used = JSON.parse(localStorage.getItem(LS_KEY) || '[]'); } catch(e) {}
+  const remaining = COMMENT_POOL.map((_,i)=>i).filter(i=>!used.includes(i));
+  if(remaining.length === 0){
+    used = [];
+    const pick = 0;
+    localStorage.setItem(LS_KEY, JSON.stringify([pick]));
+    return COMMENT_POOL[pick];
+  }
+  const pick = remaining[Math.floor(Math.random() * remaining.length)];
+  used.push(pick);
+  localStorage.setItem(LS_KEY, JSON.stringify(used));
+  return COMMENT_POOL[pick];
+}
+
+function startWizard() {
 
 function startWizard() {
   if(!classType) return;
